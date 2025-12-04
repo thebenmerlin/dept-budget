@@ -12,22 +12,25 @@ export async function GET() {
   try {
     const pdfBytes = await generateBudgetPdf();
 
-    // --- FIX: convert to a SAFE ArrayBuffer ---
+    // Predeclare arrayBuffer as ArrayBuffer
     let arrayBuffer: ArrayBuffer;
 
     if (pdfBytes instanceof Uint8Array) {
-      arrayBuffer = pdfBytes.slice().buffer;  
-      // slice() forces a NEW non-shared ArrayBuffer
+      // Uint8Array → force new ArrayBuffer
+      const copy = pdfBytes.slice(); // copy into a new buffer
+      arrayBuffer = copy.buffer;
     } 
-    else if (pdfBytes instanceof ArrayBuffer) {
-      arrayBuffer = pdfBytes;
-    } 
-    else if (typeof Buffer !== "undefined" && Buffer.isBuffer(pdfBytes)) {
+    else if (
+      typeof Buffer !== "undefined" &&
+      (pdfBytes as any)?.constructor?.name === "Buffer"
+    ) {
+      // Node Buffer → convert manually
       const buf = pdfBytes as Buffer;
-      arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+      const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+      arrayBuffer = ab as ArrayBuffer; // <-- explicit cast fixes TS error
     } 
     else {
-      throw new Error("Unsupported PDF byte format");
+      throw new Error("Unsupported PDF byte format returned from generateBudgetPdf()");
     }
 
     return new NextResponse(arrayBuffer, {
