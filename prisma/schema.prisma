@@ -42,6 +42,8 @@ model User {
   password    String
   role        Role          @default(STAFF)
 
+  department  String?       // <-- ADDED THIS
+
   submittedExpenses Expense[] @relation("SubmittedExpenses")
   approvedExpenses  Expense[] @relation("ApprovedExpenses")
 
@@ -50,7 +52,6 @@ model User {
   @@index([role])
   @@map("users")
 }
-
 // ------------------------------
 // Budgets
 // ------------------------------
