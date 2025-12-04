@@ -1,0 +1,124 @@
+// =====================================================
+//  Prisma Schema — Optimized for Neon + Cloudinary
+// =====================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")   // Neon Postgres connection
+}
+
+// -----------------------------------------------------
+// ENUMS
+// -----------------------------------------------------
+enum Role {
+  ADMIN
+  HOD
+  COORDINATOR
+  STAFF
+}
+
+enum ExpenseStatus {
+  PENDING
+  VERIFIED
+  APPROVED
+  REJECTED
+}
+
+// -----------------------------------------------------
+// MODELS
+// -----------------------------------------------------
+
+// ------------------------------
+// Users
+// ------------------------------
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(STAFF)
+  expenses  Expense[]
+  createdAt DateTime  @default(now())
+
+  @@index([role])
+  @@map("users")
+}
+
+// ------------------------------
+// Budgets
+// ------------------------------
+model Budget {
+  id         String           @id @default(uuid())
+  year       Int
+  proposed   Float
+  allotted   Float
+  variance   Float
+  categories CategoryBudget[]
+  createdAt  DateTime         @default(now())
+
+  @@unique([year])
+  @@map("budgets")
+}
+
+// ------------------------------
+// Budget Categories
+// ------------------------------
+model CategoryBudget {
+  id       String  @id @default(uuid())
+  category String
+  planned  Float
+  spent    Float   @default(0)
+  budgetId String
+  budget   Budget  @relation(fields: [budgetId], references: [id])
+
+  @@index([category])
+  @@map("category_budgets")
+}
+
+// ------------------------------
+// Expenses
+// ------------------------------
+model Expense {
+  id         String        @id @default(uuid())
+  category   String
+  amount     Float
+  date       DateTime
+  description String?
+  vendor     String?
+  activity   String?
+
+  // Cloudinary URL
+  receiptUrl String?       // stored as TEXT (Cloudinary URL)
+
+  status     ExpenseStatus @default(PENDING)
+
+  createdBy  String
+  user       User          @relation(fields: [createdBy], references: [id])
+
+  logs       ExpenseLog[]
+  createdAt  DateTime      @default(now())
+
+  @@index([category])
+  @@index([status])
+  @@index([createdBy])
+  @@map("expenses")
+}
+
+// ------------------------------
+// Expense Log (Audit Trail)
+// ------------------------------
+model ExpenseLog {
+  id        String   @id @default(uuid())
+  expenseId String
+  expense   Expense  @relation(fields: [expenseId], references: [id])
+  action    String
+  actor     String
+  timestamp DateTime @default(now())
+
+  @@index([expenseId])
+  @@map("expense_logs")
+}
