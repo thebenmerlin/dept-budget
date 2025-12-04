@@ -1,5 +1,5 @@
 // =====================================================
-//  Prisma Schema — Optimized for Neon + Cloudinary
+//  Prisma Schema — Updated to match your API usage
 // =====================================================
 
 generator client {
@@ -8,7 +8,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")   // Neon Postgres connection
+  url      = env("DATABASE_URL")
 }
 
 // -----------------------------------------------------
@@ -36,13 +36,16 @@ enum ExpenseStatus {
 // Users
 // ------------------------------
 model User {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  password  String
-  role      Role      @default(STAFF)
-  expenses  Expense[]
-  createdAt DateTime  @default(now())
+  id          String        @id @default(uuid())
+  name        String
+  email       String        @unique
+  password    String
+  role        Role          @default(STAFF)
+
+  submittedExpenses Expense[] @relation("SubmittedExpenses")
+  approvedExpenses  Expense[] @relation("ApprovedExpenses")
+
+  createdAt   DateTime      @default(now())
 
   @@index([role])
   @@map("users")
@@ -68,12 +71,14 @@ model Budget {
 // Budget Categories
 // ------------------------------
 model CategoryBudget {
-  id       String  @id @default(uuid())
+  id       String     @id @default(uuid())
   category String
   planned  Float
-  spent    Float   @default(0)
+  spent    Float      @default(0)
   budgetId String
-  budget   Budget  @relation(fields: [budgetId], references: [id])
+  budget   Budget     @relation(fields: [budgetId], references: [id])
+
+  expenses Expense[]
 
   @@index([category])
   @@map("category_budgets")
@@ -83,28 +88,32 @@ model CategoryBudget {
 // Expenses
 // ------------------------------
 model Expense {
-  id         String        @id @default(uuid())
-  category   String
-  amount     Float
-  date       DateTime
-  description String?
-  vendor     String?
-  activity   String?
+  id           String         @id @default(uuid())
+  amount       Float
+  date         DateTime
+  description  String?
+  vendor       String?
+  activity     String?
 
-  // Cloudinary URL
-  receiptUrl String?       // stored as TEXT (Cloudinary URL)
+  receiptUrl   String?
+  status       ExpenseStatus  @default(PENDING)
 
-  status     ExpenseStatus @default(PENDING)
+  // Relations expected by your API:
+  categoryId   String
+  category     CategoryBudget @relation(fields: [categoryId], references: [id])
 
-  createdBy  String
-  user       User          @relation(fields: [createdBy], references: [id])
+  submittedById String
+  submittedBy   User          @relation("SubmittedExpenses", fields: [submittedById], references: [id])
 
-  logs       ExpenseLog[]
-  createdAt  DateTime      @default(now())
+  approvedById  String?       
+  approvedBy    User?         @relation("ApprovedExpenses", fields: [approvedById], references: [id])
 
-  @@index([category])
+  logs         ExpenseLog[]
+  createdAt    DateTime       @default(now())
+
   @@index([status])
-  @@index([createdBy])
+  @@index([submittedById])
+  @@index([approvedById])
   @@map("expenses")
 }
 
