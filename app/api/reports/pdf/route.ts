@@ -10,20 +10,34 @@ export async function GET() {
   }
 
   try {
-    const pdfBytes = await generateBudgetPdf(); 
-    // pdfBytes is likely Uint8Array → convert to ArrayBuffer
-    const buffer =
-      pdfBytes instanceof Uint8Array ? pdfBytes.buffer : pdfBytes;
+    const pdfBytes = await generateBudgetPdf();
 
-    return new NextResponse(buffer, {
+    // --- FIX: convert to a SAFE ArrayBuffer ---
+    let arrayBuffer: ArrayBuffer;
+
+    if (pdfBytes instanceof Uint8Array) {
+      arrayBuffer = pdfBytes.slice().buffer;  
+      // slice() forces a NEW non-shared ArrayBuffer
+    } 
+    else if (pdfBytes instanceof ArrayBuffer) {
+      arrayBuffer = pdfBytes;
+    } 
+    else if (typeof Buffer !== "undefined" && Buffer.isBuffer(pdfBytes)) {
+      const buf = pdfBytes as Buffer;
+      arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    } 
+    else {
+      throw new Error("Unsupported PDF byte format");
+    }
+
+    return new NextResponse(arrayBuffer, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition":
-          'attachment; filename="budget_report.pdf"',
+        "Content-Disposition": 'attachment; filename="budget_report.pdf"',
       },
     });
   } catch (e) {
-    console.error(e);
+    console.error("PDF generation error:", e);
     return new NextResponse("Error generating report", { status: 500 });
   }
 }
