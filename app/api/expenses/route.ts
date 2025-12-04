@@ -40,7 +40,7 @@ export async function POST(req: Request) {
         date: new Date(date),
         categoryId,
         vendor,
-        activityType: activityType as ActivityType,
+        activity: activityType as ActivityType,
         receiptUrl,
         submittedById: session.user.id,
         status: "PENDING"
