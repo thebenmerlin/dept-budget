@@ -1,0 +1,5 @@
+{
+  "name": "Smart Dept Budget System",
+  "description": "A comprehensive budget management and expense analytics dashboard for college departments featuring role-based access, visual analytics, and expense tracking.",
+  "requestFramePermissions": []
+}
