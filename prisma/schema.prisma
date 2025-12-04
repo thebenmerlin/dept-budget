@@ -1,5 +1,6 @@
 // =====================================================
-//  Prisma Schema — Updated to match your API usage
+//  Prisma Schema — Final, robust, API-aligned version
+//  Compatible with Neon + Vercel + Cloudinary usage
 // =====================================================
 
 generator client {
@@ -28,6 +29,14 @@ enum ExpenseStatus {
   REJECTED
 }
 
+enum ActivityType {
+  MEETING
+  PURCHASE
+  EVENT
+  TRAVEL
+  OTHER
+}
+
 // -----------------------------------------------------
 // MODELS
 // -----------------------------------------------------
@@ -36,22 +45,23 @@ enum ExpenseStatus {
 // Users
 // ------------------------------
 model User {
-  id          String        @id @default(uuid())
-  name        String
-  email       String        @unique
-  password    String
-  role        Role          @default(STAFF)
+  id                String     @id @default(uuid())
+  name              String
+  email             String     @unique
+  password          String
+  role              Role       @default(STAFF)
+  department        String?                 // selectable in API
 
-  department  String?       // <-- ADDED THIS
+  submittedExpenses Expense[]  @relation("SubmittedExpenses")
+  approvedExpenses  Expense[]  @relation("ApprovedExpenses")
 
-  submittedExpenses Expense[] @relation("SubmittedExpenses")
-  approvedExpenses  Expense[] @relation("ApprovedExpenses")
-
-  createdAt   DateTime      @default(now())
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   @@index([role])
   @@map("users")
 }
+
 // ------------------------------
 // Budgets
 // ------------------------------
@@ -63,6 +73,7 @@ model Budget {
   variance   Float
   categories CategoryBudget[]
   createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 
   @@unique([year])
   @@map("budgets")
@@ -72,16 +83,20 @@ model Budget {
 // Budget Categories
 // ------------------------------
 model CategoryBudget {
-  id       String     @id @default(uuid())
+  id       String    @id @default(uuid())
   category String
   planned  Float
-  spent    Float      @default(0)
+  spent    Float     @default(0)
   budgetId String
-  budget   Budget     @relation(fields: [budgetId], references: [id])
+  budget   Budget    @relation(fields: [budgetId], references: [id])
 
   expenses Expense[]
 
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
   @@index([category])
+  @@unique([budgetId, category]) // prevent duplicate category names within the same budget
   @@map("category_budgets")
 }
 
@@ -89,28 +104,29 @@ model CategoryBudget {
 // Expenses
 // ------------------------------
 model Expense {
-  id           String         @id @default(uuid())
-  amount       Float
-  date         DateTime
-  description  String?
-  vendor       String?
-  activity     String?
+  id             String         @id @default(uuid())
+  amount         Float
+  date           DateTime
+  description    String?
+  vendor         String?
+  activity       ActivityType?  // enum for strong typing
 
-  receiptUrl   String?
-  status       ExpenseStatus  @default(PENDING)
+  receiptUrl     String?        // Cloudinary URL
+  status         ExpenseStatus  @default(PENDING)
 
   // Relations expected by your API:
-  categoryId   String
-  category     CategoryBudget @relation(fields: [categoryId], references: [id])
+  categoryId     String
+  category       CategoryBudget @relation(fields: [categoryId], references: [id])
 
-  submittedById String
-  submittedBy   User          @relation("SubmittedExpenses", fields: [submittedById], references: [id])
+  submittedById  String
+  submittedBy    User           @relation("SubmittedExpenses", fields: [submittedById], references: [id])
 
-  approvedById  String?       
-  approvedBy    User?         @relation("ApprovedExpenses", fields: [approvedById], references: [id])
+  approvedById   String?
+  approvedBy     User?          @relation("ApprovedExpenses", fields: [approvedById], references: [id])
 
-  logs         ExpenseLog[]
-  createdAt    DateTime       @default(now())
+  logs           ExpenseLog[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([status])
   @@index([submittedById])
@@ -122,12 +138,12 @@ model Expense {
 // Expense Log (Audit Trail)
 // ------------------------------
 model ExpenseLog {
-  id        String   @id @default(uuid())
-  expenseId String
-  expense   Expense  @relation(fields: [expenseId], references: [id])
-  action    String
-  actor     String
-  timestamp DateTime @default(now())
+  id         String   @id @default(uuid())
+  expenseId  String
+  expense    Expense  @relation(fields: [expenseId], references: [id])
+  action     String
+  actor      String
+  timestamp  DateTime @default(now())
 
   @@index([expenseId])
   @@map("expense_logs")
